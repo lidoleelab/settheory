@@ -1,3 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>Anonymous Points</title>
+<style>
+  html, body {
+    margin: 0;
+    overflow: hidden;
+    background: #050505;
+  }
+
+  canvas {
+    display: block;
+    cursor: grab;
+  }
+
+  canvas:active {
+    cursor: grabbing;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -17,7 +43,17 @@ const emojis = [
   "🥲","🤔","😑","😳","😵","😴","😇"
 ];
 
-const palette = [190, 220, 270, 305, 335, 35, 55, 135];
+// 제한된 컬러 팔레트: 너무 산만하지 않은 랜덤 컬러
+const palette = [
+  190, // cyan
+  220, // blue
+  270, // violet
+  305, // magenta
+  335, // pink-red
+  35,  // orange
+  55,  // yellow
+  135  // green
+];
 
 const points = [];
 const TOTAL = 9000;
@@ -26,14 +62,21 @@ for (let i = 0; i < TOTAL; i++) {
   const angle = Math.random() * Math.PI * 2;
   const radius = Math.pow(Math.random(), 0.38);
 
-  const x = Math.cos(angle) * radius * 1.55 + (Math.random() - 0.5) * 0.28;
-  const y = Math.sin(angle) * radius * 0.95 + (Math.random() - 0.5) * 0.28;
+  const x =
+    Math.cos(angle) * radius * 1.55 +
+    (Math.random() - 0.5) * 0.28;
+
+  const y =
+    Math.sin(angle) * radius * 0.95 +
+    (Math.random() - 0.5) * 0.28;
+
+  const hue = palette[Math.floor(Math.random() * palette.length)];
 
   points.push({
     x,
     y,
     emoji: emojis[Math.floor(Math.random() * emojis.length)],
-    hue: palette[Math.floor(Math.random() * palette.length)]
+    hue
   });
 }
 
@@ -51,24 +94,30 @@ canvas.addEventListener("mousedown", e => {
   lastY = e.clientY;
 });
 
-window.addEventListener("mouseup", () => dragging = false);
+window.addEventListener("mouseup", () => {
+  dragging = false;
+});
 
 window.addEventListener("mousemove", e => {
   if (!dragging) return;
+
   offsetX += e.clientX - lastX;
   offsetY += e.clientY - lastY;
+
   lastX = e.clientX;
   lastY = e.clientY;
 });
 
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
-  zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.14 : 0.88);
-}, { passive: false });
 
-function zoomAt(mouseX, mouseY, factor) {
+  const mouseX = e.clientX;
+  const mouseY = e.clientY;
+
   const beforeX = (mouseX - W / 2 - offsetX) / zoom;
   const beforeY = (mouseY - H / 2 - offsetY) / zoom;
+
+  const factor = e.deltaY < 0 ? 1.14 : 0.88;
 
   zoom *= factor;
   zoom = Math.max(0.35, Math.min(zoom, 60));
@@ -78,66 +127,7 @@ function zoomAt(mouseX, mouseY, factor) {
 
   offsetX += mouseX - W / 2 - offsetX - afterX;
   offsetY += mouseY - H / 2 - offsetY - afterY;
-}
-
-let lastTouchDistance = null;
-let lastTouchX = null;
-let lastTouchY = null;
-
-canvas.addEventListener("touchstart", e => {
-  e.preventDefault();
-
-  if (e.touches.length === 1) {
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-  }
-
-  if (e.touches.length === 2) {
-    lastTouchDistance = getTouchDistance(e);
-  }
 }, { passive: false });
-
-canvas.addEventListener("touchmove", e => {
-  e.preventDefault();
-
-  if (e.touches.length === 1) {
-    const x = e.touches[0].clientX;
-    const y = e.touches[0].clientY;
-
-    offsetX += x - lastTouchX;
-    offsetY += y - lastTouchY;
-
-    lastTouchX = x;
-    lastTouchY = y;
-  }
-
-  if (e.touches.length === 2) {
-    const newDistance = getTouchDistance(e);
-
-    if (lastTouchDistance) {
-      const factor = newDistance / lastTouchDistance;
-
-      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-
-      zoomAt(centerX, centerY, factor);
-    }
-
-    lastTouchDistance = newDistance;
-  }
-}, { passive: false });
-
-canvas.addEventListener("touchend", () => {
-  lastTouchDistance = null;
-  lastTouchX = null;
-  lastTouchY = null;
-});
-
-function getTouchDistance(e) {
-  const dx = e.touches[0].clientX - e.touches[1].clientX;
-  const dy = e.touches[0].clientY - e.touches[1].clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
 
 function draw() {
   ctx.fillStyle = "#050505";
@@ -149,15 +139,25 @@ function draw() {
     const sx = W / 2 + offsetX + p.x * scale * zoom;
     const sy = H / 2 + offsetY + p.y * scale * zoom;
 
-    if (sx < -100 || sx > W + 100 || sy < -100 || sy > H + 100) continue;
+    if (sx < -100 || sx > W + 100 || sy < -100 || sy > H + 100) {
+      continue;
+    }
 
     if (zoom < 8) {
       ctx.fillStyle = `hsla(${p.hue}, 90%, 62%, 0.85)`;
+
       ctx.beginPath();
-      ctx.arc(sx, sy, Math.max(0.45, zoom * 0.16), 0, Math.PI * 2);
+      ctx.arc(
+        sx,
+        sy,
+        Math.max(0.45, zoom * 0.16),
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     } else {
       const size = Math.min(38, zoom * 1.25);
+
       ctx.font = `${size}px serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -170,3 +170,6 @@ function draw() {
 
 draw();
 </script>
+
+</body>
+</html>
