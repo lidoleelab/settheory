@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>Anonymous Points</title>
+<style>
+  html, body {
+    margin: 0;
+    overflow: hidden;
+    background: #050505;
+  }
+
+  canvas {
+    display: block;
+    cursor: grab;
+  }
+
+  canvas:active {
+    cursor: grabbing;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", resize);
+resize();
+
+const emojis = [
+  "🙂","😐","😶","😎","😮","😬","🙃","😕",
+  "🥲","🤔","😑","😳","😵","😴","😇"
+];
+
+// 제한된 컬러 팔레트: 너무 산만하지 않은 랜덤 컬러
+const palette = [
+  190, // cyan
+  220, // blue
+  270, // violet
+  305, // magenta
+  335, // pink-red
+  35,  // orange
+  55,  // yellow
+  135  // green
+];
+
+const points = [];
+const TOTAL = 9000;
+
+for (let i = 0; i < TOTAL; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = Math.pow(Math.random(), 0.38);
+
+  const x =
+    Math.cos(angle) * radius * 1.55 +
+    (Math.random() - 0.5) * 0.28;
+
+  const y =
+    Math.sin(angle) * radius * 0.95 +
+    (Math.random() - 0.5) * 0.28;
+
+  const hue = palette[Math.floor(Math.random() * palette.length)];
+
+  points.push({
+    x,
+    y,
+    emoji: emojis[Math.floor(Math.random() * emojis.length)],
+    hue
+  });
+}
+
+let zoom = 0.58;
+let offsetX = 0;
+let offsetY = 0;
+
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+
+canvas.addEventListener("mousedown", e => {
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+window.addEventListener("mouseup", () => {
+  dragging = false;
+});
+
+window.addEventListener("mousemove", e => {
+  if (!dragging) return;
+
+  offsetX += e.clientX - lastX;
+  offsetY += e.clientY - lastY;
+
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+
+  const mouseX = e.clientX;
+  const mouseY = e.clientY;
+
+  const beforeX = (mouseX - W / 2 - offsetX) / zoom;
+  const beforeY = (mouseY - H / 2 - offsetY) / zoom;
+
+  const factor = e.deltaY < 0 ? 1.14 : 0.88;
+
+  zoom *= factor;
+  zoom = Math.max(0.35, Math.min(zoom, 60));
+
+  const afterX = beforeX * zoom;
+  const afterY = beforeY * zoom;
+
+  offsetX += mouseX - W / 2 - offsetX - afterX;
+  offsetY += mouseY - H / 2 - offsetY - afterY;
+}, { passive: false });
+
+function draw() {
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(0, 0, W, H);
+
+  const scale = Math.min(W, H) * 0.42;
+
+  for (const p of points) {
+    const sx = W / 2 + offsetX + p.x * scale * zoom;
+    const sy = H / 2 + offsetY + p.y * scale * zoom;
+
+    if (sx < -100 || sx > W + 100 || sy < -100 || sy > H + 100) {
+      continue;
+    }
+
+    if (zoom < 8) {
+      ctx.fillStyle = `hsla(${p.hue}, 90%, 62%, 0.85)`;
+
+      ctx.beginPath();
+      ctx.arc(
+        sx,
+        sy,
+        Math.max(0.45, zoom * 0.16),
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    } else {
+      const size = Math.min(38, zoom * 1.25);
+
+      ctx.font = `${size}px serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.emoji, sx, sy);
+    }
+  }
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+
+</body>
+</html>
